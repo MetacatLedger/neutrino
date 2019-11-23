@@ -36,7 +36,7 @@ const (
 	// addresses.  This is useful since normal accounts are derived from
 	// the root hierarchical deterministic key and imported addresses do
 	// not fit into that model.
-	ImportedAddrAccount = MaxAccountNum + 1 // 2^31 - 1
+	ImportedAddrAccount = MaxAccountNum - 1 // 2^31 - 1
 
 	// ImportedAddrAccountName is the name of the imported account.
 	ImportedAddrAccountName = "imported"
@@ -685,6 +685,9 @@ func (m *Manager) MaybeExtendAddress(ns walletdb.ReadWriteBucket, address czzuti
 		unused, err := scopedMgr.CountUnused(ns, maddr.Account(), maddr.Internal())
 		if err != nil {
 			return err
+		}
+		if maddr.Account() == ImportedAddrAccount {
+			return nil
 		}
 		if maddr.Internal() {
 			if unused < NumInitialAddrs {
