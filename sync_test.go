@@ -14,14 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/classzz/czzwallet/waddrmgr"
-	"github.com/classzz/czzwallet/wallet/txauthor"
-	"github.com/classzz/czzwallet/walletdb"
-	_ "github.com/classzz/czzwallet/walletdb/bdb"
-	"github.com/classzz/classzz/bchec"
 	"github.com/classzz/classzz/btcjson"
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/chaincfg/chainhash"
+	"github.com/classzz/classzz/czzec"
 	"github.com/classzz/classzz/integration/rpctest"
 	"github.com/classzz/classzz/rpcclient"
 	"github.com/classzz/classzz/txscript"
@@ -29,6 +25,10 @@ import (
 	"github.com/classzz/czzlog"
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzutil/gcs/builder"
+	"github.com/classzz/czzwallet/waddrmgr"
+	"github.com/classzz/czzwallet/wallet/txauthor"
+	"github.com/classzz/czzwallet/walletdb"
+	_ "github.com/classzz/czzwallet/walletdb/bdb"
 	"github.com/classzz/neutrino"
 )
 
@@ -188,12 +188,12 @@ var (
 // secSource is an implementation of bchwallet/txauthor/SecretsSource that
 // stores WitnessPubKeyHash addresses.
 type secSource struct {
-	keys    map[string]*bchec.PrivateKey
+	keys    map[string]*czzec.PrivateKey
 	scripts map[string]*[]byte
 	params  *chaincfg.Params
 }
 
-func (s *secSource) add(privKey *bchec.PrivateKey) (czzutil.Address, error) {
+func (s *secSource) add(privKey *czzec.PrivateKey) (czzutil.Address, error) {
 	pubKeyHash := czzutil.Hash160(privKey.PubKey().SerializeCompressed())
 	addr, err := czzutil.NewAddressPubKeyHash(pubKeyHash, s.params)
 	if err != nil {
@@ -217,7 +217,7 @@ func (s *secSource) add(privKey *bchec.PrivateKey) (czzutil.Address, error) {
 }
 
 // GetKey is required by the txscript.KeyDB interface
-func (s *secSource) GetKey(addr czzutil.Address) (*bchec.PrivateKey, bool,
+func (s *secSource) GetKey(addr czzutil.Address) (*czzec.PrivateKey, bool,
 	error) {
 	privKey, ok := s.keys[addr.String()]
 	if !ok {
@@ -242,7 +242,7 @@ func (s *secSource) ChainParams() *chaincfg.Params {
 
 func newSecSource(params *chaincfg.Params) *secSource {
 	return &secSource{
-		keys:    make(map[string]*bchec.PrivateKey),
+		keys:    make(map[string]*czzec.PrivateKey),
 		scripts: make(map[string]*[]byte),
 		params:  params,
 	}
@@ -313,7 +313,7 @@ func testRescan(harness *neutrinoHarness, t *testing.T) {
 	// this to test rescans and notifications.
 	modParams := harness.svc.ChainParams()
 	secSrc = newSecSource(&modParams)
-	privKey1, err := bchec.NewPrivateKey(bchec.S256())
+	privKey1, err := czzec.NewPrivateKey(czzec.S256())
 	if err != nil {
 		t.Fatalf("Couldn't generate private key: %s", err)
 	}
@@ -340,7 +340,7 @@ func testRescan(harness *neutrinoHarness, t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to send raw transaction to node: %s", err)
 	}
-	privKey2, err := bchec.NewPrivateKey(bchec.S256())
+	privKey2, err := czzec.NewPrivateKey(czzec.S256())
 	if err != nil {
 		t.Fatalf("Couldn't generate private key: %s", err)
 	}
@@ -487,7 +487,7 @@ func testStartRescan(harness *neutrinoHarness, t *testing.T) {
 	// Create another address to send to so we don't trip the rescan with
 	// the old address and we can test monitoring both OutPoint usage and
 	// receipt by addresses.
-	privKey3, err := bchec.NewPrivateKey(bchec.S256())
+	privKey3, err := czzec.NewPrivateKey(czzec.S256())
 	if err != nil {
 		t.Fatalf("Couldn't generate private key: %s", err)
 	}
@@ -659,7 +659,7 @@ func fetchPrevInputScripts(block *wire.MsgBlock, client *rpctest.Harness) ([][]b
 		for _, txIn := range tx.TxIn {
 			prevTxHash := txIn.PreviousOutPoint.Hash
 
-			prevTx, err := client.Node.GetRawTransaction(&prevTxHash)
+			prevTx, err := client.Node.GetRawTransaction(prevTxHash.String())
 			if err != nil {
 				return nil, err
 			}
@@ -837,7 +837,7 @@ func testRandomBlocks(harness *neutrinoHarness, t *testing.T) {
 			}
 			blockHash := blockHeader.BlockHash()
 			// Get block via RPC.
-			wantBlock, err := harness.h1.Node.GetBlock(&blockHash)
+			wantBlock, err := harness.h1.Node.GetBlock(blockHash.String())
 			if err != nil {
 				errChan <- fmt.Errorf("Couldn't get block %d "+
 					"(%s) by RPC", height, blockHash)
